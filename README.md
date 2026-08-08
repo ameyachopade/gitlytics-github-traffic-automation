@@ -19,7 +19,7 @@ Please consider giving this project a ⭐ if you find it helpful!
 ---
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/ameyac11/gitlytics/main/assets/gitlytics_thumbnail_1.png" width="100%" />
+  <img src="https://raw.githubusercontent.com/ameyachopade/gitlytics/main/assets/gitlytics_thumbnail_1.png" width="100%" />
 </div>
 
 ---
@@ -28,8 +28,8 @@ Please consider giving this project a ⭐ if you find it helpful!
 
 The full Gitlytics ecosystem spans across a few repositories. If you are looking for the core Python API or the web dashboard, check out the links below:
 
-- 🐍 **[Gitlytics (Core Library)](https://github.com/ameyac11/gitlytics)**: The core Python library, REST API backend, and CLI tools.
-- **[Gitlytics Web Ecosystem](https://github.com/ameyac11/gitlytics-deployement)**: The production landing page, React Dashboard, and React Documentation site.
+- 🐍 **[Gitlytics (Core Library)](https://github.com/ameyachopade/gitlytics)**: The core Python library, REST API backend, and CLI tools.
+- **[Gitlytics Web Ecosystem](https://github.com/ameyachopade/gitlytics-deployement)**: The production landing page, React Dashboard, and React Documentation site.
 
 ---
 
@@ -101,7 +101,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Sync Traffic Data
-        uses: ameyac11/gitlytics-action@v1
+        uses: ameyachopade/gitlytics-action@v1
         with:
           traffic_token: ${{ secrets.TRAFFIC_TOKEN }}
 ```
