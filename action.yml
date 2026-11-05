@@ -1,5 +1,5 @@
 name: 'Gitlytics Traffic Sync'
-description: 'Automatically syncs and backs up GitHub traffic data to prevent the 14-day data loss.'
+description: 'Automatically syncs and backs up GitHub repository traffic data to prevent 14-day data loss.'
 branding:
   icon: 'activity'
   color: 'orange'
@@ -19,13 +19,13 @@ runs:
   using: 'composite'
   steps:
     - name: Set up Python 3.11
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
     - name: Install Gitlytics
       shell: bash
-      run: pip install "gitlytics>=0.4.5"
+      run: pip install --upgrade "gitlytics>=0.7.0"
 
     - name: Sync Traffic Data
       shell: bash

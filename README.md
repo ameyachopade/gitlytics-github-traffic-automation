@@ -1,159 +1,181 @@
 <div align="center">
 
-<img src="./assets/logo.png" alt="Gitlytics Logo" width="150" />
+<img src="./assets/logo.png" alt="Gitlytics Logo" width="140" />
 
-# Gitlytics Traffic Sync
+# Gitlytics Traffic Sync Automation
+### Automated Long-Term GitHub Traffic Backup & Historical Analytics
 
-[![GitHub Actions](https://api.gitlytics.dev/api/badge/tech.svg?slug=githubactions&style=icon_label_value&label=GH%20Actions&label_color=%23555555&variant=plastic&value=Automated&value_color=%232088FF)](https://github.com/features/actions)
-[![Python](https://api.gitlytics.dev/api/badge/tech.svg?slug=python&style=icon_label_value&label=Python&label_color=%23555555&variant=plastic&value=3.11%2B&value_color=%233776AB)](https://www.python.org/)
-[![PyPI](https://api.gitlytics.dev/api/badge/pypi/gitlytics.svg?label=Powered%20by)](https://pypi.org/project/gitlytics/)
-[![Live Dashboard](https://api.gitlytics.dev/api/badge/tech.svg?slug=livedemo&style=icon_label_value&label=Live%20Dashboard&label_color=%23555555&variant=plastic&value=dashboard.gitlytics.dev&value_color=%233FB950)](https://dashboard.gitlytics.dev)
-[![Live Docs](https://api.gitlytics.dev/api/badge/tech.svg?slug=docs&style=icon_label_value&label=Live%20Docs&label_color=%23555555&variant=plastic&value=docs.gitlytics.dev&value_color=%233FB950)](https://docs.gitlytics.dev)
+[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Automated_Sync-2088FF?logo=githubactions&logoColor=white)](https://github.com/features/actions)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyPI](https://img.shields.io/badge/Powered_by-gitlytics_v0.7.0+-38bdf8?logo=pypi&logoColor=white)](https://pypi.org/project/gitlytics/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Live Dashboard](https://img.shields.io/badge/Live_Studio-dashboard.gitlytics.dev-818cf8?logo=googlechrome&logoColor=white)](https://dashboard.gitlytics.dev)
+[![Documentation](https://img.shields.io/badge/Docs-docs.gitlytics.dev-10b981?logo=readthedocs&logoColor=white)](https://docs.gitlytics.dev)
 
-**Never lose your GitHub repository traffic data again!** 📈
+<br/>
 
-Please consider giving this project a ⭐ if you find it helpful!
+**Never lose your repository traffic data again.**  
+GitHub automatically deletes repository traffic after 14 days. This zero-maintenance GitHub Action runs every 13 days to seamlessly capture, deduplicate, and archive views, clones, referrers, and paths into clean monthly CSV vaults.
+
+[**Explore Live Dashboard**](https://dashboard.gitlytics.dev) • [**Core Library**](https://github.com/ameyachopade/gitlytics) • [**Read Documentation**](https://docs.gitlytics.dev) • [**Engineering Blog**](https://blog.gitlytics.dev)
+
+<br/>
 
 </div>
 
 ---
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/ameyachopade/gitlytics/main/assets/gitlytics_thumbnail_1.png" width="100%" />
+  <img src="./assets/traffic_automation_thumbnail_1.png" alt="Gitlytics Traffic Automation Showcase" width="100%" />
 </div>
 
 ---
 
-## 🔗 The Gitlytics Ecosystem
-
-The full Gitlytics ecosystem spans across a few repositories. If you are looking for the core Python API or the web dashboard, check out the links below:
-
-- 🐍 **[Gitlytics (Core Library)](https://github.com/ameyachopade/gitlytics)**: The core Python library, REST API backend, and CLI tools.
-- **[Gitlytics Web Ecosystem](https://github.com/ameyachopade/gitlytics-deployement)**: The production landing page, React Dashboard, and React Documentation site.
-
----
-
-## 🧐 Why do we need automation?
+## 🧐 Why Is Automation Essential?
 
 > [!WARNING]
-> **The 14-Day Data Loss:** By default, GitHub only retains repository traffic data (views and clones) for the **latest 14 days**. After two weeks, your valuable historical data is permanently deleted and gone forever. 
+> **The 14-Day Traffic Cliff:** GitHub natively **only retains repository traffic data for the last 14 days**. After two weeks, your views, clones, top referrers, and popular paths are permanently deleted and cannot be recovered.
 
-If you want to track your repository's growth, analyze long-term trends, or just keep a permanent record of your project's popularity, you need a way to back up this data regularly. 
+If you want to track repository adoption, measure the impact of product launches, or maintain complete historical analytics, you need automated snapshots.
 
-**This automation solves that problem perfectly.** Instead of running every day and wasting GitHub Action minutes, it smartly fetches your GitHub traffic data **every 13 days**. Since GitHub keeps 14 days of history, this creates a perfect 1-day overlap as a safety buffer—meaning 0 wasted minutes and absolutely no data missed!
+### ⏱️ The Smart 13-Day Overlap Strategy
+
+Running an action every day wastes GitHub Actions runner minutes. Running once a month causes data loss.
+
+Gitlytics triggers automatically **every 13 days**:
+- **0 Missed Data**: Since GitHub preserves 14 days, a 13-day schedule creates a 1-day safety overlap.
+- **50%+ CI Minutes Saved**: Running ~2.3 times per month instead of 30 times saves runner quotas.
+- **Smart Deduplication**: The underlying `gitlytics` sync engine automatically merges date ranges without duplicates.
+
+```mermaid
+flowchart LR
+    A["GitHub Traffic API\n(14-Day Rolling History)"] -->|"Sync Every 13 Days\n(1-Day Overlap Buffer)"| B["Gitlytics Action Engine\n(gitlytics sync)"]
+    B -->|"Deduplicate & Partition"| C[("Monthly CSV Vaults\ndata/traffic_YYYY-MM.csv")]
+    C --> D["Gitlytics Web Studio\n(dashboard.gitlytics.dev)"]
+    C --> E["Dynamic Profile Widgets & Cards"]
+```
 
 ---
 
-## ✨ Features & How it Works
+## ✨ How It Works
 
-The repository is structured into three main components to ensure a clean and automated data extraction process:
+1. **Trigger Engine (`.github/workflows/fetch_traffic.yml`)**:  
+   Runs on a schedule (`cron: '0 17 */13 * *'`) at **17:00 UTC** every 13th day, plus supports manual execution anytime (`workflow_dispatch`).
 
-### ⚙️ 1. The Automation Engine (`.github/workflows/`)
-This folder contains the `fetch_traffic.yml` workflow file. It uses **GitHub Actions** to automatically trigger the data extraction script **every 13th day** at **17:00 UTC (10:30 PM IST)**. It runs completely in the background without any manual intervention, perfectly optimized to save CI/CD minutes.
+2. **Core Sync Logic (`gitlytics>=0.7.0`)**:  
+   Authenticates securely using your GitHub Personal Access Token (PAT) and queries:
+   - Daily views & unique visitors
+   - Git clones & unique cloners
+   - Top external referring domains & counts
+   - Most visited file paths
+   - Cumulative star and fork counters
 
-### 🧠 2. The Core Logic (`gitlytics` package)
-The workflow automatically installs and runs the official [**gitlytics** PyPI package](https://pypi.org/project/gitlytics/) to handle the heavy lifting:
-- Securely authenticates with the GitHub API using your Personal Access Token.
-- Fetches all available traffic data (Views, Clones, Stars, Forks, Unique Visitors).
-- Intelligently merges new data with your historical data without any duplicates.
-
-### 📂 3. The Data Storage (`data/`)
-Instead of one massive file, the data is smartly organized into **monthly CSV files** (e.g., `traffic_2024-01.csv`). This makes it incredibly easy to read, export, and analyze your data over time.
+3. **Structured Monthly CSV Vaults (`data/`)**:  
+   Data is partitioned into standardized monthly CSV files (e.g. `data/traffic_2026-06.csv`). Easy to query with Pandas, DuckDB, Excel, or visualize directly in the [Gitlytics Dashboard](https://dashboard.gitlytics.dev).
 
 ---
 
 ## ⚡ Setup Guide
 
-Choose one of the two options below to set up your traffic tracking:
+Choose the setup method that best matches your workflow:
 
 ### Option A: Reusable GitHub Action (Recommended)
-Add traffic tracking directly to your existing repository.
+Add automated traffic archiving directly into any existing repository.
 
-#### Step 1: Create a Fine-Grained Personal Access Token (PAT)
-1. Go to GitHub **Settings** > **Developer settings** > **Personal access tokens** > **Fine-grained tokens**.
+#### Step 1: Create a Personal Access Token (PAT)
+1. Navigate to GitHub **Settings** → **Developer settings** → **Personal access tokens** → **Fine-grained tokens**.
 2. Click **Generate new token**.
-3. Select the repository you want to monitor.
+3. Under **Repository access**, select the repository (or repositories) you wish to monitor.
 4. Under **Repository permissions**, set **Administration** to **Read-only**.
 5. Generate and copy the token.
 
-#### Step 2: Add the Token to Secrets
-1. In the repository you want to monitor, navigate to **Settings** > **Secrets and variables** > **Actions**.
-2. Create a new repository secret named `TRAFFIC_TOKEN` and paste your token.
+*(Alternatively, you can use a Classic PAT with the `repo` scope).*
 
-#### Step 3: Create the Workflow File
-In your repository, create `.github/workflows/traffic.yml` and paste the following content:
+#### Step 2: Add Token to Repository Secrets
+1. In your repository, go to **Settings** → **Secrets and variables** → **Actions**.
+2. Click **New repository secret**.
+3. Set the name to `TRAFFIC_TOKEN` and paste your token value.
+
+#### Step 3: Add the Workflow File
+Create `.github/workflows/traffic.yml` in your repository:
 
 ```yaml
 name: Gitlytics Traffic Sync
 
 on:
   schedule:
-    - cron: '0 17 */13 * *'
-  workflow_dispatch:
+    - cron: '0 17 */13 * *'  # Runs every 13 days
+  workflow_dispatch:          # Allows manual one-click trigger
 
 jobs:
-  backup:
+  sync-traffic:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write         # Required to commit CSV updates to the repository
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Sync Traffic Data
-        uses: ameyachopade/gitlytics-action@v1
+        uses: ameyachopade/gitlytics-traffic-monitor-automation@main
         with:
           traffic_token: ${{ secrets.TRAFFIC_TOKEN }}
+          data_dir: 'data/'
+          metrics: 'views clones stars forks'
 ```
 
 ---
 
 ### Option B: Dedicated Traffic Vault (Template Repository)
-Keep all your repository traffic databases consolidated in a single, private vault repository.
+Consolidate traffic metrics for **all your repositories** into a single private repository.
 
-#### Step 1: Use this Template
-Click **Use this template** at the top right of this repository page and select **Create a new repository**.
-> [!IMPORTANT]
-> Make sure to set the new repository to **Private**!
-
-#### Step 2: Create a Personal Access Token (PAT)
-Generate a classic GitHub PAT with `repo` permissions to allow the sync process to fetch your repositories.
-
-#### Step 3: Add the Token to Secrets
-1. Go to your new private vault repository's settings.
-2. Navigate to **Secrets and variables** > **Actions**.
-3. Create a new repository secret named `TRAFFIC_TOKEN` and paste your PAT.
+1. **Use This Template**: Click **Use this template** at the top right of this repository → **Create a new repository**.
+2. **Make It Private**: Set the repository visibility to **Private** to protect your analytics data.
+3. **Add Secret**: Under **Settings** → **Secrets and variables** → **Actions**, add `TRAFFIC_TOKEN` with a Classic PAT (`repo` scope).
+4. **Run First Sync**: Navigate to the **Actions** tab, select **Fetch GitHub Traffic**, and click **Run workflow**.
 
 ---
 
-### 🚀 First Run Tip
-Because the cron schedule runs every 13 days, the folders/CSV files will not appear immediately.
-To populate your initial traffic data right away:
-1. Go to the **Actions** tab in your repository.
-2. Select the **Fetch GitHub Traffic** workflow.
-3. Click the **Run workflow** button.
+## ⚙️ Action Inputs Reference
+
+| Input | Description | Required | Default |
+| :--- | :--- | :---: | :--- |
+| `traffic_token` | GitHub Personal Access Token (PAT) with administration read access. | **Yes** | — |
+| `data_dir` | Directory path where historical monthly CSV files are saved. | No | `'data/'` |
+| `metrics` | Space-separated list of metrics to capture (`views clones stars forks`). | No | `'views clones stars forks'` |
 
 ---
 
-## 📊 Companion Traffic Dashboard
+## 📊 Visualizing Your Data
 
-Raw CSV files are great, but visualizing them is even better! 
+Raw CSV files are safe and durable, but visualizing them provides instant clarity:
 
-We have built a beautiful production **React Dashboard** to seamlessly visualize the data generated by this automation.
-
-👉 **[View the Live Dashboard at dashboard.gitlytics.dev](https://dashboard.gitlytics.dev)**
-👉 **[Read the Full Documentation](https://docs.gitlytics.dev)**
-
-**How to use it:**
-1. **CSV Upload:** Directly upload your monthly CSV files generated by this automation into the dashboard to visualize your accumulated historical data.
-2. **Real-time API Fetch:** If you want on-demand, real-time traffic stats, you can connect your GitHub account directly using your Personal Access Token (PAT).
+1. **Upload to Web Studio**: Upload your generated monthly CSV files directly to **[dashboard.gitlytics.dev](https://dashboard.gitlytics.dev)** to generate interactive charts, referral breakdowns, and visitor trends.
+2. **Dynamic Profile Cards**: Display your activity across your GitHub profile using Gitlytics' **[31+ Dynamic SVG Profile Cards](https://github.com/ameyachopade/gitlytics#--ultra-modern-profile-cards--widgets)**.
+3. **Python & Jupyter**: Load the CSV directly into Pandas:
+   ```python
+   import pandas as pd
+   df = pd.read_csv("data/traffic_2026-06.csv")
+   print(df.groupby("repository")[["views", "unique_visitors"]].sum())
+   ```
 
 ---
 
-## 📜 License
+## 🔗 The Gitlytics Ecosystem
 
-This project is licensed under the Apache 2.0 License. See the [LICENSE](LICENSE) file for more details.
+- 🐍 **[Gitlytics Core Library & CLI](https://github.com/ameyachopade/gitlytics)**: Core Python SDK, CLI tools, and SVG card generators.
+- 🌐 **[Live Web Dashboard](https://dashboard.gitlytics.dev)**: Real-time visual traffic analytics platform.
+- 📚 **[Documentation](https://docs.gitlytics.dev)**: Complete configuration guides and API docs.
+- 📝 **[Engineering Blog](https://blog.gitlytics.dev)**: Architecture breakdowns and open-source analytics insights.
 
-<div align="center">
-  <i>Built with ❤️ for the Open Source Community.</i>
-</div>
+---
+
+## 🌟 Show Your Support
+
+If this automation helped you save your GitHub traffic data, please give this repository a **⭐ Star on [GitHub](https://github.com/ameyachopade/gitlytics-traffic-monitor-automation)**!
+
+---
+
+## 📄 License
+
+Distributed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) for details.
