@@ -3,40 +3,525 @@ description: 'Automatically syncs and backs up GitHub repository traffic data to
 branding:
   icon: 'activity'
   color: 'orange'
+
 inputs:
   traffic_token:
-    description: 'GitHub Personal Access Token (PAT) with repository administration read permissions.'
+    description: 'GitHub Personal Access Token (PAT) with repository administration read access. Fine-grained tokens need "Administration: Read" plus "Metadata: Read"; classic tokens need the "repo" scope.'
     required: true
+  repository:
+    description: 'Repository to backup in "owner/repo" format. Set to "all" for all token repos. Defaults to current repo.'
+    required: false
+    default: ${{ github.repository }}
   data_dir:
-    description: 'The directory where traffic CSV files will be stored.'
+    description: 'Directory where traffic CSV vaults will be stored.'
     required: false
     default: 'data/'
   metrics:
-    description: 'Metrics to sync, space-separated.'
+    description: 'Space-separated metrics to sync (views clones referrers paths stars forks releases).'
     required: false
-    default: 'views clones stars forks'
+    default: 'views clones referrers paths stars forks releases'
+  branch:
+    description: 'Branch to commit and push traffic data to. Defaults to the current repository branch.'
+    required: false
+    default: ''
+  include_private:
+    description: 'Set to "true" to archive private repositories too when repository is "all". Default "false" keeps private repository names and their traffic out of the committed CSV vault.'
+    required: false
+    default: 'false'
+
+outputs:
+  changed:
+    description: 'true when new traffic rows were committed and pushed, false when the vault was already current.'
+    value: ${{ steps.commit.outputs.changed }}
+  data_dir:
+    description: 'Directory containing the archived traffic CSV files.'
+    value: ${{ steps.commit.outputs.data-dir }}
+
 runs:
   using: 'composite'
   steps:
+    - name: Verify token permissions
+      id: preflight
+      shell: bash
+      timeout-minutes: 5
+      env:
+        GITHUB_TOKEN: ${{ inputs.traffic_token }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+      run: |
+        set -euo pipefail
+
+        # Strip CR/LF and outer whitespace so pasted secrets work cleanly.
+        GITHUB_TOKEN="$(printf '%s' "$GITHUB_TOKEN" | tr -d '\r\n')"
+        GITHUB_TOKEN="${GITHUB_TOKEN#"${GITHUB_TOKEN%%[![:space:]]*}"}"
+        GITHUB_TOKEN="${GITHUB_TOKEN%"${GITHUB_TOKEN##*[![:space:]]}"}"
+        echo "::add-mask::$GITHUB_TOKEN"
+
+        if [ -z "$GITHUB_TOKEN" ]; then
+          echo "::error::TRAFFIC_TOKEN is empty."
+          exit 1
+        fi
+
+        PREFLIGHT_DIR="${RUNNER_TEMP:-/tmp}"
+        PREFLIGHT_BODY="$PREFLIGHT_DIR/gitlytics-preflight.json"
+        PREFLIGHT_HDR="$PREFLIGHT_DIR/gitlytics-preflight.headers"
+
+        # AF2-ACT-06: a single transient 429/5xx/network blip used to fail the
+        # run outright; the next scheduled attempt is a week later, by which
+        # time part of the 14-day window has already expired. Retry bounded.
+        retryable_status() {
+          case "$1" in
+            000|429|500|502|503|504) return 0 ;;
+            *) return 1 ;;
+          esac
+        }
+
+        is_rate_limited_403() {
+          [ "$1" = "403" ] && grep -qiE '^x-ratelimit-remaining:\s*0' "$PREFLIGHT_HDR" 2>/dev/null
+        }
+
+        backoff_sleep() {
+          case "$1" in
+            1) sleep 60 ;;
+            2) sleep 300 ;;
+            *) sleep 900 ;;
+          esac
+        }
+
+        probe_endpoint() {
+          local label="$1"
+          local url="$2"
+          local status attempt=1
+          while true; do
+            status="$(curl -sS --connect-timeout 10 --max-time 30 \
+              -D "$PREFLIGHT_HDR" -o "$PREFLIGHT_BODY" -w '%{http_code}' \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "User-Agent: gitlytics-github-traffic-automation" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "$url" || true)"
+            [ -n "$status" ] || status="000"
+            if [ "$attempt" -ge 3 ]; then
+              break
+            fi
+            if retryable_status "$status" || is_rate_limited_403 "$status"; then
+              echo "::warning::Transient HTTP $status during preflight for $label (attempt $attempt/3); retrying."
+              backoff_sleep "$attempt"
+              attempt=$((attempt + 1))
+              continue
+            fi
+            break
+          done
+
+          case "$status" in
+            200)
+              echo "Verified API access for $label."
+              ;;
+            401)
+              echo "::error::TRAFFIC_TOKEN is invalid or expired (HTTP 401). Create a new PAT and update the TRAFFIC_TOKEN secret."
+              exit 1
+              ;;
+            403)
+              if grep -qiE '^x-ratelimit-remaining:\s*0' "$PREFLIGHT_HDR" 2>/dev/null \
+                || grep -qiE 'rate limit|secondary rate|abuse' "$PREFLIGHT_BODY" 2>/dev/null; then
+                echo "::error::GitHub API rate limit hit during preflight for $label (HTTP 403). Retry later."
+              elif grep -qi 'SAML' "$PREFLIGHT_BODY" 2>/dev/null; then
+                echo "::error::TRAFFIC_TOKEN requires SAML SSO authorization for $label (HTTP 403)."
+              else
+                echo "::error::TRAFFIC_TOKEN cannot read traffic for $label (HTTP 403). Fine-grained tokens need 'Administration: Read' plus 'Metadata: Read'; classic tokens need the 'repo' scope. The token owner must also be a repository admin or collaborator."
+              fi
+              exit 1
+              ;;
+            404)
+              echo "::error::Repository $label was not found or is not visible to TRAFFIC_TOKEN (HTTP 404)."
+              exit 1
+              ;;
+            429)
+              echo "::error::GitHub API rate limit exceeded during preflight for $label (HTTP 429). Retry later."
+              exit 1
+              ;;
+            *)
+              echo "::error::Traffic preflight for $label failed with HTTP $status."
+              exit 1
+              ;;
+          esac
+        }
+
+        REPO_RAW="$(printf '%s' "$INPUT_REPOSITORY" | tr -d '\r\n')"
+        REPO_TRIM="${REPO_RAW#"${REPO_RAW%%[![:space:]]*}"}"
+        REPO_TRIM="${REPO_TRIM%"${REPO_TRIM##*[![:space:]]}"}"
+
+        if [ -z "$REPO_TRIM" ] || [ "$REPO_TRIM" = "all" ]; then
+          # AF2-ACT-03: probing only `GET /user` proves the token is valid but
+          # NOT that it can read traffic. A fine-grained PAT with only
+          # "Metadata: Read" passes this check, every traffic endpoint then
+          # returns 403, the sync writes zero rows, the job goes GREEN with
+          # `changed=false` - indistinguishable from "vault already current".
+          # Two green months in a row means the traffic aged out of GitHub's
+          # 14-day window and was lost permanently.
+          #
+          # So: prove the token can read traffic for at least one real repo.
+          probe_endpoint "authenticated user (all repositories)" "https://api.github.com/user"
+
+          TRAFFIC_PROBE_OK=0
+          REPOS_ATTEMPT=1
+          while true; do
+            REPOS_STATUS="$(curl -sS --connect-timeout 10 --max-time 30 \
+              -o "$PREFLIGHT_BODY" -w '%{http_code}' \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              -H "User-Agent: gitlytics-github-traffic-automation" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/user/repos?per_page=1&affiliation=owner" || true)"
+            [ -n "$REPOS_STATUS" ] || REPOS_STATUS="000"
+            if [ "$REPOS_ATTEMPT" -ge 3 ] || ! retryable_status "$REPOS_STATUS"; then
+              break
+            fi
+            echo "::warning::Transient HTTP $REPOS_STATUS while listing repositories (attempt $REPOS_ATTEMPT/3); retrying."
+            backoff_sleep "$REPOS_ATTEMPT"
+            REPOS_ATTEMPT=$((REPOS_ATTEMPT + 1))
+          done
+          if [ "$REPOS_STATUS" = "200" ]; then
+            FIRST_REPO="$(sed -n 's/.*"full_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PREFLIGHT_BODY" | head -n 1)"
+            if [ -n "$FIRST_REPO" ]; then
+              probe_endpoint "traffic access for $FIRST_REPO" \
+                "https://api.github.com/repos/${FIRST_REPO}/traffic/views"
+              TRAFFIC_PROBE_OK=1
+            fi
+          fi
+
+          if [ "$TRAFFIC_PROBE_OK" -ne 1 ]; then
+            echo "::error::Could not prove that TRAFFIC_TOKEN can read repository traffic. 'repository: all' needs a token with 'Administration: Read' + 'Metadata: Read' (fine-grained) or the 'repo' scope (classic). Refusing to continue - a sync that writes nothing would look successful."
+            exit 1
+          fi
+        else
+          IFS=',' read -ra REPO_ITEMS <<< "$REPO_TRIM"
+          CHECKED=0
+          for raw_item in "${REPO_ITEMS[@]}"; do
+            item="${raw_item#"${raw_item%%[![:space:]]*}"}"
+            item="${item%"${item##*[![:space:]]}"}"
+            [ -n "$item" ] || continue
+            if ! [[ "$item" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || [[ "$item" == *".."* ]]; then
+              echo "::error::Invalid repository format '$item'. Expected owner/repo."
+              exit 1
+            fi
+            probe_endpoint "$item" "https://api.github.com/repos/$item/traffic/views"
+            CHECKED=$((CHECKED + 1))
+          done
+          if [ "$CHECKED" -eq 0 ]; then
+            echo "::error::Cannot verify traffic permissions: set 'repository' to owner/repo or all."
+            exit 1
+          fi
+        fi
+
     - name: Set up Python 3.11
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
       with:
         python-version: '3.11'
 
-    - name: Install Gitlytics
+    - name: Install Gitlytics Core
       shell: bash
-      run: pip install --upgrade "gitlytics>=0.7.0"
+      timeout-minutes: 10
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+
+        # AF2-ACT-05: one source of truth for the library version. The release
+        # workflow and the regression suite both read this file, so a bump can
+        # never leave the action installing a different version than the one
+        # the tests and README advertise.
+        VERSION_FILE="$ACTION_PATH/.gitlytics-version"
+        if [ ! -f "$VERSION_FILE" ]; then
+          echo "::error::Missing $VERSION_FILE - the action cannot resolve the gitlytics version."
+          exit 1
+        fi
+        VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::Invalid gitlytics version '$VERSION' in .gitlytics-version (expected X.Y.Z)."
+          exit 1
+        fi
+
+        # AF2-ACT-07: `gitlytics` has no PyPI release yet (AF2-ACT-01), so it is
+        # installed without dependencies and every third-party package is
+        # installed from a hash-pinned lockfile. Otherwise a malicious
+        # requests/pandas/numpy release would run in a job holding the user's
+        # repo-scoped PAT and a contents:write GITHUB_TOKEN.
+        python -m pip install --no-cache-dir --disable-pip-version-check \
+          --no-deps "gitlytics==$VERSION"
+        python -m pip install --no-cache-dir --disable-pip-version-check \
+          --require-hashes -r "$ACTION_PATH/requirements.txt"
 
     - name: Sync Traffic Data
       shell: bash
+      timeout-minutes: 20
       env:
         GITHUB_TOKEN: ${{ inputs.traffic_token }}
-      run: gitlytics sync --data-dir "${{ inputs.data_dir }}" --metrics ${{ inputs.metrics }}
-
-    - name: Commit and push changes
-      shell: bash
+        INPUT_DATA_DIR: ${{ inputs.data_dir }}
+        INPUT_METRICS: ${{ inputs.metrics }}
+        INPUT_REPOSITORY: ${{ inputs.repository }}
+        INPUT_BRANCH: ${{ inputs.branch }}
+        INPUT_INCLUDE_PRIVATE: ${{ inputs.include_private }}
       run: |
+        set -euo pipefail
+
+        # Relative path guard: block traversal, absolute paths, and tilde expansion.
+        if [[ "$INPUT_DATA_DIR" == *".."* ]] || [[ "$INPUT_DATA_DIR" == /* ]] || [[ "$INPUT_DATA_DIR" == \\* ]] || [[ "$INPUT_DATA_DIR" == ~* ]] || [[ "$INPUT_DATA_DIR" =~ ^[A-Za-z]: ]]; then
+          echo "::error::Invalid data_dir '$INPUT_DATA_DIR': must be a relative workspace path without '..'."
+          exit 1
+        fi
+        # AF2-ACT-10: the guard above still allowed newlines and '=', which
+        # let a crafted data_dir inject arbitrary extra step outputs through
+        # $GITHUB_OUTPUT (and arbitrary shell through the reporting step).
+        # Restrict the value to a conservative filename charset.
+        if [[ ! "$INPUT_DATA_DIR" =~ ^[A-Za-z0-9._/-]+$ ]] || [[ "$INPUT_DATA_DIR" == *".."* ]]; then
+          echo "::error::Invalid data_dir '$INPUT_DATA_DIR': only letters, digits, '.', '_', '-' and '/' are allowed."
+          exit 1
+        fi
+
+        # Clean token & register secret mask
+        GITHUB_TOKEN="$(printf '%s' "$GITHUB_TOKEN" | tr -d '\r\n')"
+        GITHUB_TOKEN="${GITHUB_TOKEN#"${GITHUB_TOKEN%%[![:space:]]*}"}"
+        GITHUB_TOKEN="${GITHUB_TOKEN%"${GITHUB_TOKEN##*[![:space:]]}"}"
+        echo "::add-mask::$GITHUB_TOKEN"
+
+        # Check out target branch BEFORE syncing so gitlytics merges onto any
+        # existing remote vault CSVs rather than starting from a different branch.
+        if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+          CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
+          TARGET_BRANCH="${INPUT_BRANCH:-${CURRENT_BRANCH:-${GITHUB_REF_NAME:-main}}}"
+          if [ -z "$TARGET_BRANCH" ]; then
+            TARGET_BRANCH="main"
+          fi
+          if [ "$TARGET_BRANCH" != "$CURRENT_BRANCH" ]; then
+            if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
+              git fetch origin "$TARGET_BRANCH"
+              git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+            else
+              git checkout -B "$TARGET_BRANCH"
+            fi
+          fi
+        fi
+
+        SYNC_CMD=(gitlytics sync --data-dir "$INPUT_DATA_DIR")
+
+        REPO_CLEAN="$(printf '%s' "$INPUT_REPOSITORY" | tr -d '\r\n')"
+        REPO_CLEAN="${REPO_CLEAN#"${REPO_CLEAN%%[![:space:]]*}"}"
+        REPO_CLEAN="${REPO_CLEAN%"${REPO_CLEAN##*[![:space:]]}"}"
+        if [ -n "$REPO_CLEAN" ] && [ "$REPO_CLEAN" != "all" ]; then
+          IFS=',' read -ra REPO_ITEMS <<< "$REPO_CLEAN"
+          VALID_REPOS=()
+          for raw_item in "${REPO_ITEMS[@]}"; do
+            item="${raw_item#"${raw_item%%[![:space:]]*}"}"
+            item="${item%"${item##*[![:space:]]}"}"
+            [ -n "$item" ] || continue
+            if ! [[ "$item" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]] || [[ "$item" == *".."* ]] || [[ "$item" == -* ]]; then
+              echo "::error::Invalid repository input '$item'."
+              exit 1
+            fi
+            VALID_REPOS+=("$item")
+          done
+          if [ ${#VALID_REPOS[@]} -gt 0 ]; then
+            JOINED_REPOS="$(IFS=','; echo "${VALID_REPOS[*]}")"
+            SYNC_CMD+=(--repo-name "$JOINED_REPOS")
+          fi
+        elif [ -z "$REPO_CLEAN" ] || [ "$REPO_CLEAN" = "all" ]; then
+          # AF2-ACT-08: "all" mode archived private repository names and their
+          # traffic into committed CSVs. Private repos are now skipped unless
+          # the caller explicitly opts in with include_private: true.
+          INCLUDE_PRIVATE="$(printf '%s' "${INPUT_INCLUDE_PRIVATE:-false}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+          case "$INCLUDE_PRIVATE" in
+            true|yes|1) ;;
+            ""|false|no|0) SYNC_CMD+=(--public-only) ;;
+            *)
+              echo "::error::Invalid include_private '$INPUT_INCLUDE_PRIVATE': expected true or false."
+              exit 1
+              ;;
+          esac
+        fi
+
+        METRICS_CLEAN="$(printf '%s' "$INPUT_METRICS" | tr '\r\n' ' ')"
+        read -ra METRICS_LIST <<< "$METRICS_CLEAN"
+        # AF2-ACT-09: validate against the library's real allow-list instead of
+        # a loose `^[a-z_]+$` regex. A typo used to be silently dropped by
+        # the library, so the corresponding traffic (e.g. `referrers`, `paths`)
+        # was permanently lost once the 14-day window closed.
+        ALLOWED_METRICS="views clones referrers paths stars forks releases language topics watchers_count pushed_at created_at open_issues_count"
+        VALID_METRICS=()
+        for m in "${METRICS_LIST[@]}"; do
+          [ -n "$m" ] || continue
+          if ! [[ " $ALLOWED_METRICS " == *" $m "* ]]; then
+            echo "::error::Unknown metric '$m'. Allowed metrics: $ALLOWED_METRICS"
+            exit 1
+          fi
+          VALID_METRICS+=("$m")
+        done
+        # AF2-ACT-09: compare the metric SET, not the raw string. The old
+        # string comparison treated the same seven metrics in a different
+        # order as "not the default", which made the action pass `--metrics`
+        # and silently drop the repository metadata columns (language, topics,
+        # watchers_count, ...) that are only added when `metrics` is omitted.
+        DEFAULT_METRICS=(views clones referrers paths stars forks releases)
+        IS_DEFAULT=1
+        if [ "${#VALID_METRICS[@]}" -ne "${#DEFAULT_METRICS[@]}" ]; then
+          IS_DEFAULT=0
+        else
+          for m in "${DEFAULT_METRICS[@]}"; do
+            found=0
+            for v in "${VALID_METRICS[@]}"; do
+              if [ "$v" = "$m" ]; then found=1; break; fi
+            done
+            if [ "$found" -ne 1 ]; then IS_DEFAULT=0; fi
+          done
+        fi
+        if [ "${#VALID_METRICS[@]}" -gt 0 ] && [ "$IS_DEFAULT" -eq 0 ]; then
+          SYNC_CMD+=(--metrics "${VALID_METRICS[@]}")
+        fi
+
+        # AF2-ACT-06: the sync used to be a single shot. A transient 429/5xx
+        # or network drop failed the whole run, and the next scheduled attempt
+        # is a week away - longer than part of GitHub's 14-day window. Retry
+        # bounded transient failures; fail fast on anything else (bad token,
+        # bad metrics, unparseable data).
+        SYNC_LOG="${RUNNER_TEMP:-/tmp}/gitlytics-sync.log"
+        SYNC_ATTEMPT=1
+        while true; do
+          set +e
+          "${SYNC_CMD[@]}" 2>&1 | tee "$SYNC_LOG"
+          SYNC_STATUS="${PIPESTATUS[0]}"
+          set -e
+          if [ "$SYNC_STATUS" -eq 0 ]; then
+            break
+          fi
+          if [ "$SYNC_ATTEMPT" -ge 3 ]; then
+            echo "::error::Traffic sync failed after $SYNC_ATTEMPT attempts (exit $SYNC_STATUS)."
+            exit "$SYNC_STATUS"
+          fi
+          if ! grep -qiE 'rate limit|secondary rate|abuse detection|timed out|timeout|connection (reset|refused|aborted)|temporary failure|HTTP 5[0-9][0-9]' "$SYNC_LOG"; then
+            echo "::error::Traffic sync failed with a non-retryable error (exit $SYNC_STATUS)."
+            exit "$SYNC_STATUS"
+          fi
+          if [ "$SYNC_ATTEMPT" -eq 1 ]; then
+            SYNC_DELAY=60
+          else
+            SYNC_DELAY=300
+          fi
+          echo "::warning::Transient traffic sync failure (exit $SYNC_STATUS, attempt $SYNC_ATTEMPT/3); retrying in ${SYNC_DELAY}s."
+          sleep "$SYNC_DELAY"
+          SYNC_ATTEMPT=$((SYNC_ATTEMPT + 1))
+        done
+
+    - name: Commit and Push Historical Vaults
+      id: commit
+      shell: bash
+      timeout-minutes: 20
+      env:
+        INPUT_DATA_DIR: ${{ inputs.data_dir }}
+        INPUT_BRANCH: ${{ inputs.branch }}
+      run: |
+        set -euo pipefail
+
+        # Omitting actions/checkout used to surface as a confusing "not a git
+        # repository" error halfway through the step (A4-CI-10).
+        if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+          echo "::error::The workspace is not a git repository. Add 'actions/checkout' before this action so the traffic CSVs can be committed."
+          exit 1
+        fi
+
+        OUTPUTS="${GITHUB_OUTPUT:-/dev/null}"
+        echo "data-dir=$INPUT_DATA_DIR" >> "$OUTPUTS"
+        echo "changed=false" >> "$OUTPUTS"
+
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add "${{ inputs.data_dir }}"
-        git diff --quiet && git diff --staged --quiet || (git commit -m "📊 Traffic update $(date -u +'%Y-%m-%d')" && git push)
+
+        CURRENT_BRANCH="$(git branch --show-current 2>/dev/null || true)"
+        TARGET_BRANCH="${INPUT_BRANCH:-${CURRENT_BRANCH:-${GITHUB_REF_NAME:-main}}}"
+        if [ -z "$TARGET_BRANCH" ]; then
+          TARGET_BRANCH="main"
+        fi
+
+        REMOTE_EXISTS=0
+        if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
+          REMOTE_EXISTS=1
+        fi
+
+        # Stage only traffic CSVs. A killed run can leave *.tmp or
+        # .tmp_export_* files behind, and `git add "$INPUT_DATA_DIR"` used to
+        # commit them into the vault forever (A4-CI-11).
+        stage_traffic_csvs() {
+          if [ -d "$INPUT_DATA_DIR" ]; then
+            while IFS= read -r -d '' csv; do
+              git add -- "$csv"
+            done < <(find "$INPUT_DATA_DIR" -type f -name 'traffic_*.csv' -print0)
+          fi
+        }
+
+        stage_traffic_csvs
+
+        if ! git diff --staged --quiet -- "$INPUT_DATA_DIR"; then
+          git commit -m "📊 Traffic update $(date -u +'%Y-%m-%d')"
+
+          PUSH_SUCCESS=0
+          for attempt in 1 2 3; do
+            echo "Pushing changes (attempt $attempt)..."
+            if [ "$REMOTE_EXISTS" -eq 0 ]; then
+              if git push -u origin "$TARGET_BRANCH"; then
+                PUSH_SUCCESS=1
+                break
+              fi
+              # If push failed because the branch was just created remotely, retry with pull/rebase.
+              if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
+                REMOTE_EXISTS=1
+              else
+                echo "::error::Failed to push new branch '$TARGET_BRANCH' (check token permissions or branch protection)."
+                exit 1
+              fi
+            fi
+
+            if git pull --rebase origin "$TARGET_BRANCH"; then
+              if git push origin "$TARGET_BRANCH"; then
+                PUSH_SUCCESS=1
+                break
+              else
+                echo "Push to '$TARGET_BRANCH' failed on attempt $attempt; retrying..."
+              fi
+            else
+              echo "Rebase conflict detected on attempt $attempt. Merging local CSV updates cleanly onto origin/$TARGET_BRANCH..."
+              git rebase --abort || true
+              TMP_BACKUP="$(mktemp -d)"
+              if [ -d "$INPUT_DATA_DIR" ]; then
+                while IFS= read -r -d '' csv; do
+                  rel="${csv#"$INPUT_DATA_DIR"/}"
+                  rel="${rel#./}"
+                  mkdir -p "$TMP_BACKUP/$(dirname "$rel")"
+                  cp "$csv" "$TMP_BACKUP/$rel"
+                done < <(find "$INPUT_DATA_DIR" -type f -name 'traffic_*.csv' -print0)
+              fi
+              git fetch origin "$TARGET_BRANCH"
+              git reset --hard "origin/$TARGET_BRANCH"
+              python -c "import pathlib, sys, pandas as pd; from gitlytics.automation import _write_df_to_csv; b, t = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]); t.mkdir(parents=True, exist_ok=True); [((t / s.relative_to(b)).parent.mkdir(parents=True, exist_ok=True), _write_df_to_csv(pd.read_csv(s), str(t / s.relative_to(b)))) for s in sorted(b.rglob('traffic_*.csv'))]" "$TMP_BACKUP" "$INPUT_DATA_DIR"
+              rm -rf "$TMP_BACKUP"
+              if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+                echo "::error::Unresolved git conflicts remain; aborting push."
+                exit 1
+              fi
+              stage_traffic_csvs
+              if ! git diff --staged --quiet -- "$INPUT_DATA_DIR"; then
+                git commit -m "📊 Traffic update $(date -u +'%Y-%m-%d')"
+              else
+                PUSH_SUCCESS=1
+                break
+              fi
+            fi
+            sleep $(( attempt * 3 ))
+          done
+
+          if [ "$PUSH_SUCCESS" -ne 1 ]; then
+            echo "::error::Failed to push traffic updates after 3 attempts"
+            exit 1
+          fi
+
+          echo "changed=true" >> "$OUTPUTS"
+        else
+          echo "No new traffic changes to commit."
+        fi
