@@ -5,12 +5,12 @@
 # Gitlytics Traffic Sync Automation
 ### Automated Long-Term GitHub Traffic Backup & Historical Analytics
 
-[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-Automated_Sync-2088FF?logo=githubactions&logoColor=white)](https://github.com/features/actions)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![PyPI](https://img.shields.io/badge/Powered_by-gitlytics_v0.7.2-38bdf8?logo=pypi&logoColor=white)](https://pypi.org/project/gitlytics/)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Live Dashboard](https://img.shields.io/badge/Live_Studio-dashboard.gitlytics.dev-818cf8?logo=googlechrome&logoColor=white)](https://dashboard.gitlytics.dev)
-[![Documentation](https://img.shields.io/badge/Docs-docs.gitlytics.dev-10b981?logo=readthedocs&logoColor=white)](https://docs.gitlytics.dev)
+[![GitHub Actions](https://api.gitlytics.dev/api/badges/tech/githubactions.svg?style=flat&label=Sync&value=Automated)](https://github.com/features/actions)
+[![Python](https://api.gitlytics.dev/api/badges/tech/python.svg?style=flat&label=Python&value=3.11%2B)](https://www.python.org/) <!-- Python-3.11+ -->
+[![PyPI](https://api.gitlytics.dev/api/badges/tech/pypi.svg?style=flat&label=Powered_by&value=gitlytics_v0.7.2)](https://pypi.org/project/gitlytics/)
+[![License](https://api.gitlytics.dev/api/badges/tech/custom.svg?style=flat&label=License&value=Apache_2.0&color=blue)](LICENSE)
+[![Live Dashboard](https://api.gitlytics.dev/api/badges/tech/custom.svg?style=flat&label=Studio&value=dashboard.gitlytics.dev&color=818cf8)](https://dashboard.gitlytics.dev)
+[![Documentation](https://api.gitlytics.dev/api/badges/tech/custom.svg?style=flat&label=Docs&value=docs.gitlytics.dev&color=10b981)](https://docs.gitlytics.dev)
 
 <br/>
 
