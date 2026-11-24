@@ -18,7 +18,9 @@
 **Never lose your repository traffic data again.**  
 GitHub automatically deletes repository traffic after 14 days. This zero-maintenance GitHub Action runs on the 1st, 8th, 15th, and 22nd of each month (a 7-day cadence) to seamlessly capture, deduplicate, and archive views, clones, referrers, and paths into clean monthly CSV vaults.
 
-[**Explore Live Dashboard**](https://dashboard.gitlytics.dev) • [**Core Library**](https://github.com/ameyachopade/gitlytics) • [**Agent Skills (skills.sh)**](https://skills.sh/ameyachopade/gitlytics-plugin) • [**Read Documentation**](https://docs.gitlytics.dev) • [**Engineering Blog**](https://blog.gitlytics.dev)
+[![Core Library](https://api.gitlytics.dev/api/badge/tech.svg?slug=github&style=icon_label_value&label=Core&value=ameyachopade%2Fgitlytics)](https://github.com/ameyachopade/gitlytics)
+[![Blog](https://api.gitlytics.dev/api/badge/static.svg?label=Blog&message=blog.gitlytics.dev&color=f59e0b)](https://blog.gitlytics.dev)
+[![MCP Docs](https://api.gitlytics.dev/api/badge/static.svg?label=MCP&message=docs.gitlytics.dev%2Fmcp&color=818cf8)](https://docs.gitlytics.dev/mcp)
 
 <br/>
 
