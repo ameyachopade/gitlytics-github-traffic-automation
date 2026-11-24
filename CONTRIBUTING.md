@@ -50,5 +50,5 @@ python -m pytest -q
 | [gitlytics](https://github.com/ameyachopade/gitlytics) | Core Python library, CLI, local stdio MCP & local dashboard | [PyPI](https://pypi.org/project/gitlytics) |
 | [gitlytics-plugin](https://github.com/ameyachopade/gitlytics-plugin) | Official Antigravity plugin, MCP config & 4 `npx skills` | [skills.sh](https://skills.sh/ameyachopade/gitlytics-plugin) |
 | [gitlytics-github-traffic-automation](https://github.com/ameyachopade/gitlytics-github-traffic-automation) *(this repo)* | Composite GitHub Action for automated CSV backups | [GitHub Action](https://github.com/ameyachopade/gitlytics-github-traffic-automation) |
-| [gitlytics-metadata-pages](https://github.com/ameyachopade/gitlytics-metadata-pages) | Homepage, Docs Hub & Engineering Blog | [gitlytics.dev](https://gitlytics.dev) / [docs.gitlytics.dev](https://docs.gitlytics.dev) |
+| **Gitlytics Web & Docs** | Homepage, Docs Hub & Engineering Blog | [gitlytics.dev](https://gitlytics.dev) / [docs.gitlytics.dev](https://docs.gitlytics.dev) / [blog.gitlytics.dev](https://blog.gitlytics.dev) |
 | Gitlytics Cloud Dashboard & API | Hosted Analytics Dashboard, SVG Engine & MCP Server | [dashboard.gitlytics.dev](https://dashboard.gitlytics.dev) / [api.gitlytics.dev](https://api.gitlytics.dev) |
