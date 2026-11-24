@@ -11,13 +11,14 @@
 [![License](https://api.gitlytics.dev/api/badge/static.svg?label=License&message=Apache%202.0&color=blue)](LICENSE)
 [![Live Dashboard](https://api.gitlytics.dev/api/badge/static.svg?label=Studio&message=dashboard.gitlytics.dev&color=818cf8)](https://dashboard.gitlytics.dev)
 [![Documentation](https://api.gitlytics.dev/api/badge/static.svg?label=Docs&message=docs.gitlytics.dev&color=10b981)](https://docs.gitlytics.dev)
+[![Agent Skills](https://api.gitlytics.dev/api/badge/tech.svg?slug=vercel&style=icon_label_value&label=skills.sh&value=4%20Agent%20Skills)](https://skills.sh/ameyachopade/gitlytics-plugin)
 
 <br/>
 
 **Never lose your repository traffic data again.**  
 GitHub automatically deletes repository traffic after 14 days. This zero-maintenance GitHub Action runs on the 1st, 8th, 15th, and 22nd of each month (a 7-day cadence) to seamlessly capture, deduplicate, and archive views, clones, referrers, and paths into clean monthly CSV vaults.
 
-[**Explore Live Dashboard**](https://dashboard.gitlytics.dev) • [**Core Library**](https://github.com/ameyachopade/gitlytics) • [**Read Documentation**](https://docs.gitlytics.dev) • [**Engineering Blog**](https://blog.gitlytics.dev)
+[**Explore Live Dashboard**](https://dashboard.gitlytics.dev) • [**Core Library**](https://github.com/ameyachopade/gitlytics) • [**Agent Skills (skills.sh)**](https://skills.sh/ameyachopade/gitlytics-plugin) • [**Read Documentation**](https://docs.gitlytics.dev) • [**Engineering Blog**](https://blog.gitlytics.dev)
 
 <br/>
 
@@ -196,19 +197,22 @@ Raw CSV files are safe and durable, but visualizing them provides instant clarit
 
 ## 🔗 The Gitlytics Ecosystem
 
-- 🐍 **[Gitlytics Core Library & CLI](https://github.com/ameyachopade/gitlytics)**: Core Python SDK, CLI tools, and SVG card generators.
-- 🌐 **[Live Web Dashboard](https://dashboard.gitlytics.dev)**: Real-time visual traffic analytics platform.
-- 📚 **[Documentation](https://docs.gitlytics.dev)**: Complete configuration guides and API docs.
-- 📝 **[Engineering Blog](https://blog.gitlytics.dev)**: Architecture breakdowns and open-source analytics insights.
+| Project | Role | Link |
+| :--- | :--- | :--- |
+| **[gitlytics](https://github.com/ameyachopade/gitlytics)** | Core Python library, CLI (`fetch`, `sync`, `stars`, `dashboard`, `mcp`), and self-hosted local dashboard | [PyPI](https://pypi.org/project/gitlytics/) |
+| **[gitlytics-npm](https://github.com/ameyachopade/gitlytics-npm)** | Zero-dependency Node.js CLI, JS/TS SDK, dual-mode MCP & local dashboard | [npm (`@gitlytics/cli`)](https://www.npmjs.com/package/@gitlytics/cli) |
+| **[gitlytics-plugin](https://github.com/ameyachopade/gitlytics-plugin)** | Official Antigravity plugin, MCP configs & 4 Vercel Agent Skills | [skills.sh](https://skills.sh/ameyachopade/gitlytics-plugin) |
+| **[gitlytics-github-traffic-automation](https://github.com/ameyachopade/gitlytics-github-traffic-automation)** *(this repo)* | Composite GitHub Action for automated CSV traffic backups | [GitHub Action](https://github.com/ameyachopade/gitlytics-github-traffic-automation) |
+| **[gitlytics-metadata-pages](https://github.com/ameyachopade/gitlytics-metadata-pages)** | Official Homepage, Docs Hub & Engineering Blog | [gitlytics.dev](https://gitlytics.dev) / [docs.gitlytics.dev](https://docs.gitlytics.dev) |
+| **Gitlytics Cloud Dashboard** | Hosted Analytics Dashboard, Embed Studio & MCP OAuth Consent UI | [dashboard.gitlytics.dev](https://dashboard.gitlytics.dev) |
+| **Gitlytics Hosted API & MCP** | 50-card / 200-logo SVG engine & Streamable HTTP MCP server (`/mcp`) | [api.gitlytics.dev](https://api.gitlytics.dev) |
 
 ---
 
-## 🌟 Show Your Support
+## 🤝 Contributing, Security & License
+
+- **Contributing**: See [`CONTRIBUTING.md`](CONTRIBUTING.md) for local testing, workflow hardening rules, and pull request guidelines.
+- **Security**: See [`SECURITY.md`](SECURITY.md) for least-privilege PAT scopes, script-injection defenses, and private vulnerability reporting.
+- **License**: Distributed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) for details.
 
 If this automation helped you save your GitHub traffic data, please give this repository a **⭐ Star on [GitHub](https://github.com/ameyachopade/gitlytics-github-traffic-automation)**!
-
----
-
-## 📄 License
-
-Distributed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) for details.
