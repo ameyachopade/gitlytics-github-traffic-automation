@@ -1,6 +1,6 @@
 """Regenerate requirements.txt with PyPI SHA-256 hashes.
 
-AF2-ACT-07: the action job holds a repo-scoped PAT and a contents:write token,
+the action job holds a repo-scoped PAT and a contents:write token,
 so every third-party package must be pinned byte-for-byte. This script keeps
 the lockfile reproducible:
 
@@ -8,7 +8,7 @@ the lockfile reproducible:
 
 It rewrites ``requirements.txt`` in the repository root. ``gitlytics`` itself
 is installed separately (``--no-deps``) because it is not published on PyPI
-yet (AF2-ACT-01); once it is, add its hash here and drop ``--no-deps`` from
+yet; once it is, add its hash here and drop ``--no-deps`` from
 ``action.yml``.
 """
 from __future__ import annotations
@@ -35,7 +35,7 @@ PINS = {
 
 HEADER = """# Hash-pinned runtime dependencies for the Gitlytics traffic sync action.
 #
-# AF2-ACT-07: the action runs inside a job that holds a repo-scoped PAT and a
+# the action runs inside a job that holds a repo-scoped PAT and a
 # contents:write GITHUB_TOKEN, so every third-party package it installs must be
 # byte-for-byte pinned. Install with:
 #
@@ -43,7 +43,7 @@ HEADER = """# Hash-pinned runtime dependencies for the Gitlytics traffic sync ac
 #     --require-hashes -r requirements.txt
 #
 # `gitlytics` itself is installed separately with --no-deps because it is not
-# on PyPI yet (AF2-ACT-01); once it is published, add its hash here and drop
+# on PyPI yet; once it is published, add its hash here and drop
 # --no-deps. Regenerate this file with tools/gen_requirements_hashes.py.
 """
 

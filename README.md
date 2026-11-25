@@ -1,26 +1,33 @@
 <div align="center">
 
-<img src="./assets/logo.png" alt="Gitlytics Logo" width="140" />
+<img src="https://raw.githubusercontent.com/ameyachopade/gitlytics/main/assets/logo.png" alt="Gitlytics Logo" width="140" />
 
 # Gitlytics Traffic Sync Automation
 ### Automated Long-Term GitHub Traffic Backup & Historical Analytics
 
-[![GitHub Actions](https://api.gitlytics.dev/api/badge/tech.svg?slug=githubactions&style=icon_label_value&label=Sync&value=Automated)](https://github.com/features/actions)
-[![Python](https://api.gitlytics.dev/api/badge/tech.svg?slug=python&style=icon_label_value&label=Python&value=3.11%2B)](https://www.python.org/) <!-- Python-3.11+ -->
-[![PyPI](https://api.gitlytics.dev/api/badge/pypi/gitlytics.svg?label=Powered%20by)](https://pypi.org/project/gitlytics/)
-[![License](https://api.gitlytics.dev/api/badge/static.svg?label=License&message=Apache%202.0&color=blue)](LICENSE)
-[![Live Dashboard](https://api.gitlytics.dev/api/badge/static.svg?label=Studio&message=dashboard.gitlytics.dev&color=818cf8)](https://dashboard.gitlytics.dev)
-[![Documentation](https://api.gitlytics.dev/api/badge/static.svg?label=Docs&message=docs.gitlytics.dev&color=10b981)](https://docs.gitlytics.dev)
-[![Agent Skills](https://api.gitlytics.dev/api/badge/tech.svg?slug=vercel&style=icon_label_value&label=skills.sh&value=4%20Agent%20Skills)](https://skills.sh/ameyachopade/gitlytics-plugin)
+[![GitHub Actions](https://api.gitlytics.dev/api/badge/tech.svg?slug=githubactions&style=icon_label_value&label=Sync&value=Automated&theme=gitlytics-dark&variant=clay)](https://github.com/features/actions)
+[![Python](https://api.gitlytics.dev/api/badge/tech.svg?slug=python&style=icon_label_value&label=Python&value=3.11%2B&theme=gitlytics-dark&variant=clay)](https://www.python.org/) <!-- Python-3.11+ -->
 
 <br/>
 
 **Never lose your repository traffic data again.**  
 GitHub automatically deletes repository traffic after 14 days. This zero-maintenance GitHub Action runs on the 1st, 8th, 15th, and 22nd of each month (a 7-day cadence) to seamlessly capture, deduplicate, and archive views, clones, referrers, and paths into clean monthly CSV vaults.
 
-[![Core Library](https://api.gitlytics.dev/api/badge/tech.svg?slug=github&style=icon_label_value&label=Core&value=ameyachopade%2Fgitlytics)](https://github.com/ameyachopade/gitlytics)
-[![Blog](https://api.gitlytics.dev/api/badge/static.svg?label=Blog&message=blog.gitlytics.dev&color=f59e0b)](https://blog.gitlytics.dev)
-[![MCP Docs](https://api.gitlytics.dev/api/badge/static.svg?label=MCP&message=docs.gitlytics.dev%2Fmcp&color=818cf8)](https://docs.gitlytics.dev/mcp)
+<!-- GITLYTICS:ECOSYSTEM_BADGES:START -->
+[![PyPI](https://api.gitlytics.dev/api/badge/pypi/gitlytics.svg?label=PyPI&color=E25A1C&theme=gitlytics-dark&variant=clay)](https://pypi.org/project/gitlytics/)
+[![npm](https://api.gitlytics.dev/api/badge/npm/@gitlytics/cli.svg?label=npm&color=E25A1C&theme=gitlytics-dark&variant=clay)](https://www.npmjs.com/package/@gitlytics/cli)
+[![License](https://api.gitlytics.dev/api/badge/static.svg?label=License&message=Apache+2.0&color=334155&theme=gitlytics-dark&variant=clay)](LICENSE)
+[![Agent Skills](https://api.gitlytics.dev/api/badge/skills/ameyachopade/gitlytics-plugin.svg?label=skills.sh&color=334155&theme=gitlytics-dark&variant=clay)](https://skills.sh/ameyachopade/gitlytics-plugin)
+[![MCP](https://api.gitlytics.dev/api/badge/static.svg?label=MCP&message=OAuth+2.1&color=E25A1C&theme=gitlytics-dark&variant=clay)](https://docs.gitlytics.dev/mcp)
+
+<br/>
+
+[![Home](https://api.gitlytics.dev/api/badge/static.svg?label=Site&message=gitlytics.dev&color=334155&theme=gitlytics-dark&variant=clay)](https://gitlytics.dev)
+[![Dashboard](https://api.gitlytics.dev/api/badge/static.svg?label=App&message=dashboard.gitlytics.dev&color=334155&theme=gitlytics-dark&variant=clay)](https://dashboard.gitlytics.dev)
+[![Widgets](https://api.gitlytics.dev/api/badge/static.svg?label=Widgets&message=widgets.gitlytics.dev&color=334155&theme=gitlytics-dark&variant=clay)](https://widgets.gitlytics.dev)
+[![Docs](https://api.gitlytics.dev/api/badge/static.svg?label=Docs&message=docs.gitlytics.dev&color=334155&theme=gitlytics-dark&variant=clay)](https://docs.gitlytics.dev)
+[![Blog](https://api.gitlytics.dev/api/badge/static.svg?label=Blog&message=blog.gitlytics.dev&color=334155&theme=gitlytics-dark&variant=clay)](https://blog.gitlytics.dev)
+<!-- GITLYTICS:ECOSYSTEM_BADGES:END -->
 
 <br/>
 
@@ -46,7 +53,7 @@ If you want to track repository adoption, measure the impact of product launches
 Running an action every day wastes GitHub Actions runner minutes. Running once a month causes data loss.
 
 Gitlytics triggers automatically on the **1st, 8th, 15th, and 22nd of each month** (a 7-day cadence):
-- **0 Missed Data**: GitHub preserves 14 days, so the schedule leaves a 7-day safety margin - one failed or scheduler-delayed run cannot lose traffic (AF2-ACT-06).
+- **0 Missed Data**: GitHub preserves 14 days, so the schedule leaves a 7-day safety margin - one failed or scheduler-delayed run cannot lose traffic.
 - **80%+ CI Minutes Saved**: Running 4 times per month instead of 30 times saves runner quotas.
 - **Smart Deduplication**: The underlying `gitlytics` sync engine automatically merges date ranges without duplicates.
 
@@ -171,7 +178,7 @@ Consolidate traffic metrics for **all your repositories** into a single private 
 | `data_dir` | Relative directory path where historical monthly CSV files are saved. | No | `'data/'` |
 | `metrics` | Space-separated list of metrics to capture. Dropping `referrers` or `paths` permanently loses that data after GitHub's 14-day window. Using the default preserves all repository metadata columns as well. | No | `'views clones referrers paths stars forks releases'` |
 | `branch` | Branch to commit and push traffic data to. | No | current branch |
-| `include_private` | When `repository` is `all`, set to `'true'` to archive private repositories too. The default `'false'` keeps private repository names and their traffic out of the committed CSV vault (AF2-ACT-08). Explicit `owner/repo` entries are always archived. | No | `'false'` |
+| `include_private` | When `repository` is `all`, set to `'true'` to archive private repositories too. The default `'false'` keeps private repository names and their traffic out of the committed CSV vault. Explicit `owner/repo` entries are always archived. | No | `'false'` |
 
 ### Action Outputs
 

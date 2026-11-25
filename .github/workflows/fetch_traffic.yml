@@ -4,7 +4,7 @@ on:
   schedule:
     # 1st, 8th, 15th and 22nd of each month at 17:00 UTC. A 7-day cadence
     # leaves a 7-day safety margin inside GitHub's 14-day retention window
-    # (AF2-ACT-06), so one failed or delayed run cannot lose data.
+    #, so one failed or delayed run cannot lose data.
     - cron: '0 17 1,8,15,22 * *'
   workflow_dispatch:
 
@@ -29,7 +29,7 @@ jobs:
         with:
           traffic_token: ${{ secrets.TRAFFIC_TOKEN }}
           repository: 'all'
-          # AF2-ACT-08: keep private repository names/traffic out of the vault.
+          # keep private repository names/traffic out of the vault.
           # Set to 'true' only if the vault repository is private and you accept
           # that its committed CSVs will contain your private repo names.
           include_private: 'false'
@@ -37,7 +37,7 @@ jobs:
       - name: Report archive result
         if: always()
         shell: bash
-        # AF2-ACT-11: never interpolate an expression straight into a `run:`
+        # never interpolate an expression straight into a `run:`
         # body - GitHub substitutes it into the SCRIPT TEXT before bash sees
         # it, so any shell metacharacter in the value executes on the runner.
         # Pass it through `env:` and quote it instead.
@@ -48,7 +48,7 @@ jobs:
           echo "Traffic vault directory: ${VAULT_DIR:-<unset>}"
           echo "New rows committed: ${ROWS_CHANGED:-false}"
 
-      # AF2-ACT-13: if the commit/push fails (protected branch, revoked
+      # if the commit/push fails (protected branch, revoked
       # token, ...) the synced CSVs only existed in the runner's ephemeral
       # workspace and were discarded with the job. Keep them as an artifact
       # so the run is recoverable while GitHub still serves the traffic.

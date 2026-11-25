@@ -1,5 +1,4 @@
-// Audit 4 regression suite for the traffic-monitor automation repo
-// (A4-CI-02, A4-CI-08, A4-CI-09, A4-CI-10, A4-CI-11, A4-CI-16).
+// Regression suite for the traffic-monitor GitHub Action and workflow contracts.
 //
 // The repository ships no package.json, so this runs directly:
 //   node --test tests/*.test.mjs
@@ -49,8 +48,7 @@ function parseMapping(text, key) {
   return entries;
 }
 
-// A4-CI-02 ---------------------------------------------------------------
-test("A4-CI-02: every documented action reference uses the live slug and a real tag", () => {
+test("every documented action reference uses the live slug and a real tag", () => {
   const surfaces = [README, actionYml, workflow].join("\n");
 
   assert.ok(
@@ -75,7 +73,7 @@ test("A4-CI-02: every documented action reference uses the live slug and a real 
     );
   }
 
-  // AF2-ACT-02 / AF2-ACT-05: when the advertised tag exists locally, the
+  // when the advertised tag exists locally, the
   // action it ships must be byte-identical to the working tree. Before the
   // owner cuts v1.2.0 the tag is absent, so this gate is dormant; once it is
   // created, drift between the tag and the tree fails the suite.
@@ -98,9 +96,8 @@ test("A4-CI-02: every documented action reference uses the live slug and a real 
   }
 });
 
-// A4-CI-08 ---------------------------------------------------------------
-test("A4-CI-08: token docs require read-only Administration and a preflight", () => {
-  // AF2-ACT-04: GitHub's own API reference states the fine-grained
+test("token docs require read-only Administration and a preflight", () => {
+  // GitHub's own API reference states the fine-grained
   // permission set for all four traffic endpoints is
   //   "Administration" repository permissions (read)
   // so the documentation must ask for READ, not write. Requesting write
@@ -125,7 +122,7 @@ test("A4-CI-08: token docs require read-only Administration and a preflight", ()
   assert.match(preflight, /::error::/);
   assert.match(preflight, /Administration: Read/);
   assert.match(preflight, /repo.*scope/);
-  // AF2-ACT-03: the preflight must prove the token can actually READ
+  // the preflight must prove the token can actually READ
   // traffic, not merely that the token is valid. Otherwise a token with
   // only "Metadata: Read" passes, every traffic call 403s, zero rows are
   // written and the job reports success.
@@ -134,8 +131,7 @@ test("A4-CI-08: token docs require read-only Administration and a preflight", ()
   assert.match(preflight, /Could not prove that TRAFFIC_TOKEN can read repository traffic/);
 });
 
-// A4-CI-09 ---------------------------------------------------------------
-test("A4-CI-09: README inputs and schedule match action.yml and the workflow", () => {
+test("README inputs and schedule match action.yml and the workflow", () => {
   const inputs = parseMapping(actionYml, "inputs");
   assert.deepEqual(Object.keys(inputs).sort(), [
     "branch",
@@ -172,8 +168,7 @@ test("A4-CI-09: README inputs and schedule match action.yml and the workflow", (
   assert.match(workflow, /1st, 8th, 15th and 22nd/);
 });
 
-// A4-CI-10 ---------------------------------------------------------------
-test("A4-CI-10: the Action exposes outputs, guards checkout, and sets timeouts", () => {
+test("the Action exposes outputs, guards checkout, and sets timeouts", () => {
   const outputs = parseMapping(actionYml, "outputs");
   assert.deepEqual(Object.keys(outputs).sort(), ["changed", "data_dir"]);
   assert.equal(outputs.changed.value, "${{ steps.commit.outputs.changed }}");
@@ -203,8 +198,7 @@ test("A4-CI-10: the Action exposes outputs, guards checkout, and sets timeouts",
   }
 });
 
-// A4-CI-11 ---------------------------------------------------------------
-test("A4-CI-11: temp files are ignored and only traffic CSVs are staged", () => {
+test("temp files are ignored and only traffic CSVs are staged", () => {
   for (const pattern of [
     "*.tmp",
     ".tmp_export_*",
@@ -234,9 +228,8 @@ test("A4-CI-11: temp files are ignored and only traffic CSVs are staged", () => 
   assert.notEqual(tracked.status, 0, "traffic CSV is not ignored");
 });
 
-// A4-CI-16 / AF2-ACT-05 ----------------------------------------------
-test("A4-CI-16: the library version has one source of truth and no open pin", () => {
-  // AF2-ACT-05: the old test hardcoded "gitlytics==0.7.2" in both the
+test("the library version has one source of truth and no open pin", () => {
+  // the old test hardcoded "gitlytics==0.7.2" in both the
   // assertion and action.yml, so a version bump had to be chased in two
   // places. The pin now lives in .gitlytics-version and the installer
   // reads it; a second literal in action.yml is a failure.
@@ -249,13 +242,13 @@ test("A4-CI-16: the library version has one source of truth and no open pin", ()
   assert.doesNotMatch(actionYml, /gitlytics~=/);
 });
 
-// Audit Final Regressions (AF-ACT-01 .. AF-ACT-05) -----------------------
+// Composite action and workflow safety contracts -------------------------
 
-test("AF-ACT-01: template workflow specifies repository: 'all' for Option B vault", () => {
+test("template workflow specifies repository: 'all' for Option B vault", () => {
   assert.match(workflow, /uses:\s*\.\/\s*\n\s*with:[\s\S]*repository:\s*['"]?all['"]?/);
 });
 
-test("AF-ACT-02: branch handling checks origin branch, avoids pull on new branch, and never uses stash pop || true", () => {
+test("branch handling checks origin branch, avoids pull on new branch, and never uses stash pop || true", () => {
   assert.doesNotMatch(actionYml, /git stash pop \|\| true/);
   assert.match(actionYml, /git ls-remote --exit-code --heads origin "\$TARGET_BRANCH"/);
   assert.match(actionYml, /git diff --staged --quiet -- "\$INPUT_DATA_DIR"/);
@@ -263,7 +256,7 @@ test("AF-ACT-02: branch handling checks origin branch, avoids pull on new branch
   assert.match(actionYml, /--diff-filter=U/);
 });
 
-test("AF-ACT-03: preflight validates repos, probes /user for 'all', avoids double 000, and classifies 403/429", () => {
+test("preflight validates repos, probes /user for 'all', avoids double 000, and classifies 403/429", () => {
   const preflight = actionYml.slice(
     actionYml.indexOf("Verify token permissions"),
     actionYml.indexOf("Set up Python"),
@@ -277,13 +270,13 @@ test("AF-ACT-03: preflight validates repos, probes /user for 'all', avoids doubl
   assert.match(preflight, /User-Agent:/);
 });
 
-test("AF-ACT-04: sync validates data_dir, repository, metrics tokens, and preserves metadata columns for default metrics", () => {
+test("sync validates data_dir, repository, metrics tokens, and preserves metadata columns for default metrics", () => {
   const syncBlock = actionYml.slice(
     actionYml.indexOf("Sync Traffic Data"),
     actionYml.indexOf("Commit and Push Historical Vaults"),
   );
   assert.match(syncBlock, /INPUT_DATA_DIR.*==\s*\/\*|~\*|\[A-Za-z\]:/);
-  // AF2-ACT-09: the metrics are validated against the library's real
+  // the metrics are validated against the library's real
   // allow-list (so a typo is rejected instead of silently dropping a
   // metric), and the default is compared as a SET (so the same metrics in a
   // different order do not silently drop the repository metadata columns).
@@ -294,7 +287,7 @@ test("AF-ACT-04: sync validates data_dir, repository, metrics tokens, and preser
   assert.doesNotMatch(syncBlock, /DEFAULT_METRICS_STR/);
 });
 
-test("AF-ACT-05: lockfiles & .env.* are ignored, CI workflow exists, and orphaned thumbnail is removed", () => {
+test("lockfiles & .env.* are ignored, CI workflow exists, and orphaned thumbnail is removed", () => {
   const lockIgnored = spawnSync(
     "git",
     ["check-ignore", "-q", "--no-index", "data/traffic_2026-11.csv.lock"],
@@ -337,8 +330,7 @@ test("AF-ACT-05: lockfiles & .env.* are ignored, CI workflow exists, and orphane
   }
 });
 
-// AF2-ACT-14 ---------------------------------------------------------------
-test("AF2-ACT-14: the composite-action contract is asserted, not just the indentation", () => {
+test("the composite-action contract is asserted, not just the indentation", () => {
   // A composite action step that uses `run:` MUST declare `shell:` -
   // removing it fails the action at runtime with
   // "Required property is missing: shell", but the old suite stayed green.
@@ -391,18 +383,17 @@ test("AF2-ACT-14: the composite-action contract is asserted, not just the indent
   assert.match(actionYml, /^\s*using:\s*'composite'/m, "runs.using is composite");
 });
 
-// AF2-ACT-12 / AF2-ACT-13 / AF2-ACT-11 ---------------------------
-test("AF2-ACT-12/13/11: the workflows keep credentials out of git, archive the vault and never interpolate expressions into a run: body", () => {
+test("the workflows keep credentials out of git, archive the vault and never interpolate expressions into a run: body", () => {
   const ciYml = read(".github/workflows/ci.yml");
 
-  // AF2-ACT-12: the read-only CI job must not leave the GITHUB_TOKEN in .git/config.
+  // the read-only CI job must not leave the GITHUB_TOKEN in .git/config.
   assert.match(
     ciYml,
     /persist-credentials:\s*false/,
     "the CI checkout must set persist-credentials: false",
   );
 
-  // AF2-ACT-13: the synced CSVs must survive a failed push as an artifact.
+  // the synced CSVs must survive a failed push as an artifact.
   assert.match(
     workflow,
     /actions\/upload-artifact@[0-9a-f]{40}/,
@@ -410,7 +401,7 @@ test("AF2-ACT-12/13/11: the workflows keep credentials out of git, archive the v
   );
   assert.match(workflow, /retention-days:\s*\d+/, "the artifact has a retention window");
 
-  // AF2-ACT-11: no `${{ }}` may appear inside a `run:` body - GitHub
+  // no `${{ }}` may appear inside a `run:` body - GitHub
   // substitutes it into the SCRIPT TEXT before the shell parses it, so a
   // shell metacharacter in the value executes on the runner.
   const lines = workflow.split(/\r?\n/);
@@ -438,8 +429,7 @@ test("AF2-ACT-12/13/11: the workflows keep credentials out of git, archive the v
   }
 });
 
-// AF2-ACT-06 ---------------------------------------------------------------
-test("AF2-ACT-06: transient failures retry with backoff and the schedule keeps a 7-day margin", () => {
+test("transient failures retry with backoff and the schedule keeps a 7-day margin", () => {
   const preflight = actionYml.slice(
     actionYml.indexOf("Verify token permissions"),
     actionYml.indexOf("Set up Python"),
@@ -464,8 +454,7 @@ test("AF2-ACT-06: transient failures retry with backoff and the schedule keeps a
   assert.match(workflow, /7-day/i);
 });
 
-// AF2-ACT-07 ---------------------------------------------------------------
-test("AF2-ACT-07: every third-party runtime dependency is hash-pinned", () => {
+test("every third-party runtime dependency is hash-pinned", () => {
   const requirements = read("requirements.txt");
   assert.match(requirements, /^--only-binary=:all:$/m);
 
@@ -487,8 +476,7 @@ test("AF2-ACT-07: every third-party runtime dependency is hash-pinned", () => {
   assert.match(actionYml, /--no-deps "gitlytics==\$VERSION"/);
 });
 
-// AF2-ACT-08 ---------------------------------------------------------------
-test("AF2-ACT-08: private repositories are opt-in when repository is 'all'", () => {
+test("private repositories are opt-in when repository is 'all'", () => {
   const inputs = parseMapping(actionYml, "inputs");
   assert.equal(inputs.include_private.default, "false");
 

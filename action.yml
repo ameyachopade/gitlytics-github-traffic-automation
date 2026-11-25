@@ -65,7 +65,7 @@ runs:
         PREFLIGHT_BODY="$PREFLIGHT_DIR/gitlytics-preflight.json"
         PREFLIGHT_HDR="$PREFLIGHT_DIR/gitlytics-preflight.headers"
 
-        # AF2-ACT-06: a single transient 429/5xx/network blip used to fail the
+        # a single transient 429/5xx/network blip used to fail the
         # run outright; the next scheduled attempt is a week later, by which
         # time part of the 14-day window has already expired. Retry bounded.
         retryable_status() {
@@ -151,7 +151,7 @@ runs:
         REPO_TRIM="${REPO_TRIM%"${REPO_TRIM##*[![:space:]]}"}"
 
         if [ -z "$REPO_TRIM" ] || [ "$REPO_TRIM" = "all" ]; then
-          # AF2-ACT-03: probing only `GET /user` proves the token is valid but
+          # probing only `GET /user` proves the token is valid but
           # NOT that it can read traffic. A fine-grained PAT with only
           # "Metadata: Read" passes this check, every traffic endpoint then
           # returns 403, the sync writes zero rows, the job goes GREEN with
@@ -226,7 +226,7 @@ runs:
       run: |
         set -euo pipefail
 
-        # AF2-ACT-05: one source of truth for the library version. The release
+        # one source of truth for the library version. The release
         # workflow and the regression suite both read this file, so a bump can
         # never leave the action installing a different version than the one
         # the tests and README advertise.
@@ -241,7 +241,7 @@ runs:
           exit 1
         fi
 
-        # AF2-ACT-07: `gitlytics` has no PyPI release yet (AF2-ACT-01), so it is
+        # `gitlytics` has no PyPI release yet, so it is
         # installed without dependencies and every third-party package is
         # installed from a hash-pinned lockfile. Otherwise a malicious
         # requests/pandas/numpy release would run in a job holding the user's
@@ -269,7 +269,7 @@ runs:
           echo "::error::Invalid data_dir '$INPUT_DATA_DIR': must be a relative workspace path without '..'."
           exit 1
         fi
-        # AF2-ACT-10: the guard above still allowed newlines and '=', which
+        # the guard above still allowed newlines and '=', which
         # let a crafted data_dir inject arbitrary extra step outputs through
         # $GITHUB_OUTPUT (and arbitrary shell through the reporting step).
         # Restrict the value to a conservative filename charset.
@@ -325,7 +325,7 @@ runs:
             SYNC_CMD+=(--repo-name "$JOINED_REPOS")
           fi
         elif [ -z "$REPO_CLEAN" ] || [ "$REPO_CLEAN" = "all" ]; then
-          # AF2-ACT-08: "all" mode archived private repository names and their
+          # "all" mode archived private repository names and their
           # traffic into committed CSVs. Private repos are now skipped unless
           # the caller explicitly opts in with include_private: true.
           INCLUDE_PRIVATE="$(printf '%s' "${INPUT_INCLUDE_PRIVATE:-false}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
@@ -341,7 +341,7 @@ runs:
 
         METRICS_CLEAN="$(printf '%s' "$INPUT_METRICS" | tr '\r\n' ' ')"
         read -ra METRICS_LIST <<< "$METRICS_CLEAN"
-        # AF2-ACT-09: validate against the library's real allow-list instead of
+        # validate against the library's real allow-list instead of
         # a loose `^[a-z_]+$` regex. A typo used to be silently dropped by
         # the library, so the corresponding traffic (e.g. `referrers`, `paths`)
         # was permanently lost once the 14-day window closed.
@@ -355,7 +355,7 @@ runs:
           fi
           VALID_METRICS+=("$m")
         done
-        # AF2-ACT-09: compare the metric SET, not the raw string. The old
+        # compare the metric SET, not the raw string. The old
         # string comparison treated the same seven metrics in a different
         # order as "not the default", which made the action pass `--metrics`
         # and silently drop the repository metadata columns (language, topics,
@@ -377,7 +377,7 @@ runs:
           SYNC_CMD+=(--metrics "${VALID_METRICS[@]}")
         fi
 
-        # AF2-ACT-06: the sync used to be a single shot. A transient 429/5xx
+        # the sync used to be a single shot. A transient 429/5xx
         # or network drop failed the whole run, and the next scheduled attempt
         # is a week away - longer than part of GitHub's 14-day window. Retry
         # bounded transient failures; fail fast on anything else (bad token,
@@ -421,7 +421,7 @@ runs:
         set -euo pipefail
 
         # Omitting actions/checkout used to surface as a confusing "not a git
-        # repository" error halfway through the step (A4-CI-10).
+        # repository" error halfway through the step.
         if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
           echo "::error::The workspace is not a git repository. Add 'actions/checkout' before this action so the traffic CSVs can be committed."
           exit 1
@@ -447,7 +447,7 @@ runs:
 
         # Stage only traffic CSVs. A killed run can leave *.tmp or
         # .tmp_export_* files behind, and `git add "$INPUT_DATA_DIR"` used to
-        # commit them into the vault forever (A4-CI-11).
+        # commit them into the vault forever.
         stage_traffic_csvs() {
           if [ -d "$INPUT_DATA_DIR" ]; then
             while IFS= read -r -d '' csv; do
