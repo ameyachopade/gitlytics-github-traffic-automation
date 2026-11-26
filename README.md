@@ -3,7 +3,7 @@
 <img src="https://raw.githubusercontent.com/ameyachopade/gitlytics/main/assets/logo.png" alt="Gitlytics Logo" width="140" />
 
 # Gitlytics Traffic Sync Automation
-### Automated Long-Term GitHub Traffic Backup & Historical Analytics
+### Automated Long-Term Repository Traffic Vault & Historical Telemetry
 
 [![GitHub Actions](https://api.gitlytics.dev/api/badge/tech.svg?slug=githubactions&style=icon_label_value&label=Sync&value=Automated&theme=gitlytics-dark&variant=clay)](https://github.com/features/actions)
 [![Python](https://api.gitlytics.dev/api/badge/tech.svg?slug=python&style=icon_label_value&label=Python&value=3.11%2B&theme=gitlytics-dark&variant=clay)](https://www.python.org/) <!-- Python-3.11+ -->
